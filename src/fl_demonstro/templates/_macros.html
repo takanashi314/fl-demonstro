@@ -1,0 +1,39 @@
+{#
+  フォームの入力欄を Bootstrap の見た目で表示する部品。
+  使い方: {% from "_macros.html" import render_field %}
+          {{ render_field(form.username) }}
+#}
+{% macro render_field(field) %}
+    {% set help_id = field.id ~ "-help" %}
+    {% set error_id = field.id ~ "-error" %}
+    <div class="mb-3">
+        {{ field.label(class_="form-label") }}
+        {{ field(
+            class_="form-control" ~ (" is-invalid" if field.errors else ""),
+            aria_describedby=(error_id if field.errors else (help_id if field.description else false)),
+            **kwargs
+        ) }}
+        {% if field.errors %}
+            <div id="{{ error_id }}" class="invalid-feedback">
+                {% for error in field.errors %}{{ error }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+            </div>
+        {% elif field.description %}
+            <div id="{{ help_id }}" class="form-text">{{ field.description }}</div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{# チェックボックスを Bootstrap の見た目で表示する部品 #}
+{% macro render_checkbox(field) %}
+    <div class="form-check mb-3">
+        {{ field(class_="form-check-input", **kwargs) }}
+        {{ field.label(class_="form-check-label") }}
+    </div>
+{% endmacro %}
+
+{# 項目に属さないエラー（ログイン失敗など）を表示する部品 #}
+{% macro render_form_errors(form) %}
+    {% for error in form.form_errors %}
+        <div class="alert alert-danger" role="alert">{{ error }}</div>
+    {% endfor %}
+{% endmacro %}

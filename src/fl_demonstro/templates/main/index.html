@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}ホーム{% endblock %}
+
+{% block content %}
+    {% if current_user.is_authenticated %}
+        <h1 class="mb-3">ようこそ、{{ current_user.username }} さん</h1>
+    {% else %}
+        <h1 class="mb-3">ようこそ</h1>
+        <p>アカウントをお持ちの方はログイン、お持ちでない方はサインアップしてください。</p>
+        <a class="btn btn-primary" href="{{ url_for('accounts.login') }}">ログイン</a>
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('accounts.signup') }}">サインアップ</a>
+    {% endif %}
+{% endblock %}

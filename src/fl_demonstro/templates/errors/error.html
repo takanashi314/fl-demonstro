@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="alert alert-danger">
+        <h1 class="h4">{{ title }}</h1>
+        <p class="mb-0">{{ message }}</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('main.index') }}">ホームへ戻る</a>
+{% endblock %}

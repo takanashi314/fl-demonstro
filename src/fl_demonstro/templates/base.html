@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}{% endblock %} | fl-demonstro</title>
+        <link rel="stylesheet"
+              href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+              integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+              crossorigin="anonymous">
+    </head>
+
+    <body>
+        <nav class="navbar navbar-expand-md bg-body-tertiary mb-4">
+            <div class="container">
+                <a class="navbar-brand"
+                   href="{{ url_for('main.index') }}">fl-demonstro</a>
+                <button class="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#mainNav"
+                        aria-controls="mainNav"
+                        aria-expanded="false"
+                        aria-label="メニューを開く">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="{{ 'nav-link active' if request.endpoint == 'main.index' else 'nav-link' }}"
+                               href="{{ url_for('main.index') }}">ホーム</a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav align-items-md-center">
+                        {% if current_user.is_authenticated %}
+                            <li class="nav-item">
+                                <span class="navbar-text me-md-3">{{ current_user.username }} さん</span>
+                            </li>
+                            <li class="nav-item">
+                                {# ログアウトは CSRF 対策のため POST で送る #}
+                                <form method="post"
+                                      action="{{ url_for('accounts.logout') }}">
+                                    <input type="hidden"
+                                           name="csrf_token"
+                                           value="{{ csrf_token() }}">
+                                    <button type="submit"
+                                            class="btn btn-outline-secondary btn-sm">
+                                        ログアウト
+                                    </button>
+                                </form>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="{{ 'nav-link active' if request.endpoint == 'accounts.login' else 'nav-link' }}"
+                                   href="{{ url_for('accounts.login') }}">ログイン</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="{{ 'nav-link active' if request.endpoint == 'accounts.signup' else 'nav-link' }}"
+                                   href="{{ url_for('accounts.signup') }}">サインアップ</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="container">
+            {# flash(メッセージ, 種類) の種類を Bootstrap の色に対応させる #}
+            {% set alert_colors = {
+                "success": "success",
+                "info": "info",
+                "warning": "warning",
+                "danger": "danger",
+                "error": "danger"
+            } %}
+            {% for category, message in get_flashed_messages(with_categories=true) %}
+                <div class="alert alert-{{ alert_colors.get(category, 'info') }} alert-dismissible fade show"
+                     role="alert">
+                    {{ message }}
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="閉じる"></button>
+                </div>
+            {% endfor %}
+            {% block content %}{% endblock %}
+        </main>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+                crossorigin="anonymous"></script>
+    </body>
+
+</html>

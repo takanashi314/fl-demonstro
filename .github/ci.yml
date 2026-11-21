@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      UV_VERSION: "0.13.9"
+      UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
+      REPORT_DIR: .dev_cache/.pytest_reports
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        run: python -m pip install "uv==$UV_VERSION"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-${{ runner.os }}-${{ runner.arch }}-${{ env.UV_VERSION }}-${{ hashFiles('uv.lock') }}
+
+      - name: Install dependencies
+        run: uv sync --locked --dev
+
+      - name: Check lint
+        run: uv run --no-sync ruff check --no-fix .
+
+      - name: Check formatting
+        run: uv run --no-sync ruff format --check .
+
+      - name: Check types
+        run: uv run --no-sync mypy
+
+      - name: Run tests
+        run: |
+          mkdir -p "$REPORT_DIR"
+          uv run --no-sync pytest \
+            --junitxml="$REPORT_DIR/report.xml" \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report="xml:$REPORT_DIR/coverage.xml"
+
+      - name: Write test summary
+        if: >-
+          ${{ !cancelled() &&
+              hashFiles(format('{0}/report.xml', env.REPORT_DIR)) != '' }}
+        shell: python
+        run: |
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path(os.environ["REPORT_DIR"]) / "report.xml"
+          cases = list(ET.parse(report).iter("testcase"))
+
+          failures = sum(c.find("failure") is not None for c in cases)
+          errors = sum(c.find("error") is not None for c in cases)
+          skipped = sum(c.find("skipped") is not None for c in cases)
+          passed = len(cases) - failures - errors - skipped
+
+          rows = [
+              ("合計", len(cases)),
+              ("成功", passed),
+              ("失敗", failures),
+              ("エラー", errors),
+              ("スキップ", skipped),
+          ]
+
+          with open(
+              os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8"
+          ) as summary:
+              summary.write("### テスト結果\n\n")
+              summary.write("| 結果 | 件数 |\n| --- | ---: |\n")
+              for label, count in rows:
+                  summary.write(f"| {label} | {count} |\n")
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v7.0.2
+        if: >-
+          ${{ !cancelled() &&
+              hashFiles(format('{0}/*.xml', env.REPORT_DIR)) != '' }}
+        with:
+          name: pytest-reports
+          path: ${{ env.REPORT_DIR }}/*.xml
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Prune uv cache
+        run: uv cache prune --ci

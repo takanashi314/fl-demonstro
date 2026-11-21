@@ -1,0 +1,38 @@
+# Python が自動で作るファイル
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# 仮想環境
+.venv
+
+# Flask の instance フォルダ（SQLite のデータベースなど）
+instance/
+
+# 環境変数（秘密情報）
+.env
+.env.*
+!.env.example
+
+# ツールのキャッシュ（pytest・ruff・mypy・カバレッジ）
+.pytest_cache/
+.ruff_cache/
+.dev_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Claude Code の設定（CLAUDE.md も含めてローカル限定）
+.claude/
+
+# 個人の作業メモ・会話ログ・レビュー
+.docs/
+
+# エディタ・OS が作るファイル
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,46 @@
+# プロジェクト名を固定する。書かないとフォルダ名が使われるため、フォルダ名を変えると
+# データの置き場所（ボリューム）の名前まで変わり、前のデータが見えなくなってしまう。
+name: fl-demonstro
+
+services:
+  web:
+    build: .
+    ports:
+      # 自分のパソコンからだけ開けるようにする（同じネットワークの他の機器からは見えない）
+      - "127.0.0.1:8000:8000"
+    environment:
+      # .env の SECRET_KEY を渡す（未設定ならエラーで止める）
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY を .env に設定してください}
+      # セッションと送信回数の記録を Redis に置き、複数ワーカーで共有する
+      REDIS_URL: redis://redis:6379/0
+      # ローカルの http://localhost で試すため。HTTPS で公開するときは消すこと。
+      SESSION_COOKIE_SECURE: "false"
+      # リバースプロキシ（nginx など）の後ろで公開するときだけ、その数を書く（README 参照）
+      # TRUSTED_PROXY_COUNT: "1"
+    volumes:
+      # データベース（SQLite）をコンテナの外に保存し、作り直しても消えないようにする
+      - db-data:/app/instance
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    # --appendonly yes: データをファイルにも書き出し、Redis を再起動してもログイン状態が消えないようにする
+    # --maxmemory: 使うメモリの上限。いっぱいになったら、しばらく使われていないものから消す
+    #   （ログイン画面を開くたびにセッションが1つ作られるので、上限がないと増え続けてしまう）
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  redis-data:

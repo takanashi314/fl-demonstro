@@ -1,0 +1,20 @@
+# イメージに入れないもの（秘密情報・ローカルの作業ファイルなど）
+.env
+.git
+.gitignore
+.venv
+.claude
+**/__pycache__
+**/*.py[oc]
+instance/
+tests/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info
+Dockerfile
+compose.yaml
+.dockerignore
+.dev_cache/
+.docs/

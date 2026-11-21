@@ -1,0 +1,77 @@
+minimum_pre_commit_version: "4.4.0"
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: local
+    hooks:
+      # Ruff：自動修正
+      - id: ruff-check-fix
+        name: ruff check --fix
+        entry: uv run ruff check --fix --force-exclude
+        language: unsupported
+        types_or: [python, pyi, pyproject]
+        require_serial: true
+        stages: [pre-commit]
+
+      # Ruff：整形
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: unsupported
+        types_or: [python, pyi]
+        require_serial: true
+        stages: [pre-commit]
+
+      # Ruff：lint検証
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --no-fix --force-exclude
+        language: unsupported
+        types_or: [python, pyi, pyproject]
+        require_serial: true
+        stages: [pre-commit]
+
+      # Ruff：整形検証
+      - id: ruff-format-check
+        name: ruff format --check
+        entry: uv run ruff format --check --force-exclude
+        language: unsupported
+        types_or: [python, pyi]
+        require_serial: true
+        stages: [pre-commit]
+
+      # HTML：整形
+      - id: html-modify
+        name: djlint --reformat
+        entry: uv run djlint --reformat
+        language: unsupported
+        files: '(^|/)templates/.*\.html$'
+        types: [html]
+        stages: [pre-commit]
+
+      # HTML：検証
+      - id: html-verify
+        name: djlint --lint
+        entry: uv run djlint --lint
+        language: unsupported
+        files: '(^|/)templates/.*\.html$'
+        types: [html]
+        stages: [pre-commit]
+
+      # mypy：設定ファイルで指定した対象を検査
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: unsupported
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      # pytest：push前にテスト全体を実行
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: unsupported
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
