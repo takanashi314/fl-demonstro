@@ -47,6 +47,12 @@ jobs:
       - name: Check types
         run: uv run --no-sync mypy
 
+      - name: Check template formatting
+        run: uv run --no-sync djlint --check src
+
+      - name: Lint templates
+        run: uv run --no-sync djlint --lint src
+
       - name: Run tests
         run: |
           mkdir -p "$REPORT_DIR"
