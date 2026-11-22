@@ -19,7 +19,7 @@ src/fl_demonstro/
 │   └── views.py       … 画面の処理
 └── templates/         … HTML テンプレート
     ├── base.html      … 全ページ共通の土台
-    ├── _macros.html   … フォーム部品
+    ├── macros/        … マクロ（forms.html：フォーム部品）
     └── <ブループリント名>/...
 tests/                 … 自動テスト
 migrations/            … データベースの形の変更履歴
