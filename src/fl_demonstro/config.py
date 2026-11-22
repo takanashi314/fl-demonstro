@@ -119,8 +119,59 @@ class Config:
     TRUSTED_PROXY_COUNT = _env_int("TRUSTED_PROXY_COUNT", 0)
 
 
+# ===== 開発・本番・テストの違い =====
+# 3つとも Config を継承し、
+# 変えたい設定だけを書き換えている（書いていない設定は Config と同じ）。
+# 違いには、クラスで決まるものと、環境変数（.env・compose.yaml）で決まるものがある。
+# 以下は、このプロジェクトのふつうの動かし方
+# （開発は手元で flask run、本番は docker compose up、テストは pytest）での違い。
+#
+# - 選ばれ方
+#     開発：.env の APP_ENV=development（flask コマンドが .env を読む）
+#     本番：Dockerfile の ENV APP_ENV=production。APP_ENV が未設定のときも本番になる
+#     テスト：APP_ENV では選べない。テストが make_app(TestingConfig) のように直接渡す
+# - Cookie の Secure（HTTPS のときだけ Cookie を送る）
+#     開発：なし（http://localhost で動かすため）
+#     本番：あり。
+#           ただし compose.yaml では、手元で http のまま試すために false にしている
+#     テスト：なし
+# - データベース
+#     開発：instance/app.db（Config のまま）
+#     本番：/app/instance/app.db（Config のまま。
+#           場所は INSTANCE_PATH、ファイルはボリュームに残る）
+#     テスト：メモリ上の SQLite（テストごとに作って捨てる）
+# - セッションと送信回数の記録の置き場所
+#     開発：.env に REDIS_URL がないので、
+#           セッションは instance/sessions のファイル、回数はメモリ
+#     本番：compose.yaml の REDIS_URL で、
+#           どちらも Redis（gunicorn のワーカー2つで共有する）
+#     テスト：どちらもメモリ（Redis もファイルも使わない）
+# - CSRF 対策と送信回数の制限
+#     開発・本番：有効
+#     テスト：無効（確かめるテストだけ、このクラスを継承して有効にする）
+# - パスワードのハッシュ化の強さ
+#     開発・本番：RFC 9106 の推奨値（Config のまま）
+#     テスト：最小（テストを速くするため）
+# - SECRET_KEY
+#     開発：.env の値
+#     本番：.env の値を、compose.yaml が環境変数として渡す
+#     テスト：起動のたびに作る乱数
+# - デバッグ
+#     開発：.env の FLASK_DEBUG=1 で、flask run がデバッグモードになり、
+#           デバッグツールバーも出る
+#     本番：なし（gunicorn で動かし、デバッグツールバーはイメージに入っていない）
+#     テスト：TESTING=True。ビューで起きた例外を、そのままテストに伝える
+
+
 class DevelopmentConfig(Config):
-    """開発用（自分のパソコンの http://localhost で動かす）。"""
+    """開発用（自分のパソコンの http://localhost で動かす）。
+
+    手元で flask run するときに使う（.env の APP_ENV=development で選ばれる）。
+    Config から変えているのは、Cookie の Secure を切ることと、
+    デバッグツールバーの設定だけ。
+    データベース・セッション・回数制限などは Config のままなので、
+    .env に DATABASE_URL や REDIS_URL を書かなければ、instance フォルダとメモリを使う。
+    """
 
     # http で動かすので、Secure（HTTPS のときだけ送る）を切る
     SESSION_COOKIE_SECURE = False
@@ -133,7 +184,15 @@ class DevelopmentConfig(Config):
 
 
 class ProductionConfig(Config):
-    """本番用。"""
+    """本番用。
+
+    Docker（gunicorn）で動かすときに使う
+    （Dockerfile の APP_ENV=production で選ばれる。APP_ENV が未設定のときもこれ）。
+    ほとんど Config のままで、変えているのは、
+    Cookie の Secure を環境変数で切り替えられるようにすることだけ。
+    秘密の鍵（SECRET_KEY）や Redis の場所（REDIS_URL）は、
+    compose.yaml から環境変数で受け取る。
+    """
 
     # HTTPS で公開するのが前提。ローカルの Docker で http のまま試すときだけ
     # 環境変数 SESSION_COOKIE_SECURE=false で無効にできる。
@@ -145,8 +204,14 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """自動テスト用。
 
+    pytest で使う。
+    APP_ENV では選べず、テストが make_app(TestingConfig) のように直接渡す。
+    テストを速く、外のもの（Redis・ファイル）に頼らず、
+    毎回同じ結果になるようにするため、多くの設定を変えている。
     CSRF 対策や回数制限を切ってあるので、本番では絶対に使わないこと
     （APP_ENV では選べないようにしてある）。
+    CSRF や回数制限を確かめるテストは、このクラスを継承して、その設定だけを有効にする
+    （tests/test_security.py の CSRFEnabledConfig など）。
     """
 
     # Flask のテストモード。ビューで起きた例外を 500 画面にせず、そのままテストに伝える
