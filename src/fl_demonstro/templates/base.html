@@ -11,16 +11,19 @@
               crossorigin="anonymous">
     </head>
 
-    {# 画面の構成：ナビゲーションバー＋中央部分（main）。部品は partials/ に置く #}
-    <body>
+    {# 画面の構成：ナビゲーションバー＋中央部分（main）＋フッター。部品は partials/ に置く #}
+    {# d-flex・min-vh-100・flex-grow-1：中身が短いページでも、フッターを画面の一番下に置く #}
+    <body class="d-flex flex-column min-vh-100">
         {% include "partials/navbar.html" %}
 
         {# 中央部分：各ページの中身は content ブロックに入る #}
         {# （block は include した部品の中に置くと上書きできないので、base.html に置く） #}
-        <main class="container">
+        <main class="container flex-grow-1">
             {% include "partials/flash.html" %}
             {% block content %}{% endblock %}
         </main>
+
+        {% include "partials/footer.html" %}
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
                 integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
