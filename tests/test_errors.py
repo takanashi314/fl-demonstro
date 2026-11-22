@@ -5,7 +5,7 @@ from flask import abort
 from flask.testing import FlaskClient
 
 from fl_demonstro.config import TestingConfig
-from tests.conftest import make_app
+from tests.conftest import MakeApp
 
 
 def test_404_page_is_japanese_with_navbar(client: FlaskClient) -> None:
@@ -38,7 +38,7 @@ class NoPropagateConfig(TestingConfig):
 
 
 @pytest.mark.parametrize("code", [403, 500])
-def test_other_error_pages(code: int) -> None:
+def test_other_error_pages(make_app: MakeApp, code: int) -> None:
     app = make_app(NoPropagateConfig)
 
     @app.get("/raise")
@@ -51,7 +51,7 @@ def test_other_error_pages(code: int) -> None:
     assert "alert-danger" in response.get_data(as_text=True)
 
 
-def test_unexpected_exception_shows_500_page() -> None:
+def test_unexpected_exception_shows_500_page(make_app: MakeApp) -> None:
     app = make_app(NoPropagateConfig)
 
     @app.get("/boom")

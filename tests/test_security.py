@@ -5,7 +5,7 @@ from flask import Flask, request
 from flask.testing import FlaskClient
 
 from fl_demonstro.config import ProductionConfig, TestingConfig
-from tests.conftest import VALID_SIGNUP, create_user, get_csrf_token, login, make_app
+from tests.conftest import VALID_SIGNUP, MakeApp, create_user, get_csrf_token, login
 
 
 class CSRFEnabledConfig(TestingConfig):
@@ -71,7 +71,7 @@ def test_external_files_in_page_are_allowed_by_csp(client: FlaskClient) -> None:
         assert any(url.startswith(source) for source in sources), url
 
 
-def test_hsts_and_secure_cookie_in_production() -> None:
+def test_hsts_and_secure_cookie_in_production(make_app: MakeApp) -> None:
     app = make_app(ProductionTestConfig)
     create_user(app)
     response = login(app.test_client())  # ログインするとセッション Cookie が発行される
@@ -85,7 +85,7 @@ def test_hsts_and_secure_cookie_in_production() -> None:
     assert "SameSite=Lax" in cookie
 
 
-def test_post_without_csrf_token_is_rejected() -> None:
+def test_post_without_csrf_token_is_rejected(make_app: MakeApp) -> None:
     client = make_app(CSRFEnabledConfig).test_client()
     response = client.post("/accounts/signup", data=VALID_SIGNUP)
 
@@ -93,7 +93,7 @@ def test_post_without_csrf_token_is_rejected() -> None:
     assert "送信できませんでした" in response.get_data(as_text=True)
 
 
-def test_post_with_csrf_token_succeeds() -> None:
+def test_post_with_csrf_token_succeeds(make_app: MakeApp) -> None:
     client = make_app(CSRFEnabledConfig).test_client()
     token = get_csrf_token(client.get("/accounts/signup").get_data(as_text=True))
     response = client.post(
@@ -103,7 +103,7 @@ def test_post_with_csrf_token_succeeds() -> None:
     assert response.status_code == 302
 
 
-def test_signup_is_rate_limited() -> None:
+def test_signup_is_rate_limited(make_app: MakeApp) -> None:
     client = make_app(RateLimitEnabledConfig).test_client()
     statuses = [
         client.post("/accounts/signup", data={"username": ""}).status_code
@@ -113,7 +113,7 @@ def test_signup_is_rate_limited() -> None:
     assert statuses == [400] * 5 + [429]
 
 
-def test_rate_limit_does_not_apply_to_get() -> None:
+def test_rate_limit_does_not_apply_to_get(make_app: MakeApp) -> None:
     client = make_app(RateLimitEnabledConfig).test_client()
     statuses = {client.get("/accounts/signup").status_code for _ in range(10)}
 
@@ -123,14 +123,14 @@ def test_rate_limit_does_not_apply_to_get() -> None:
 # ---------- ログインの回数制限 ----------
 
 
-def _rate_limited_app_with_user() -> Flask:
+def _rate_limited_app_with_user(make_app: MakeApp) -> Flask:
     app = make_app(RateLimitEnabledConfig)
     create_user(app)
     return app
 
 
-def test_login_failures_are_rate_limited_per_ip() -> None:
-    client = _rate_limited_app_with_user().test_client()
+def test_login_failures_are_rate_limited_per_ip(make_app: MakeApp) -> None:
+    client = _rate_limited_app_with_user(make_app).test_client()
     statuses = [
         login(client, f"user{i}", "wrong-password").status_code for i in range(6)
     ]
@@ -138,15 +138,15 @@ def test_login_failures_are_rate_limited_per_ip() -> None:
     assert statuses == [400] * 5 + [429]
 
 
-def test_login_success_is_not_counted() -> None:
-    client = _rate_limited_app_with_user().test_client()
+def test_login_success_is_not_counted(make_app: MakeApp) -> None:
+    client = _rate_limited_app_with_user(make_app).test_client()
     for _ in range(6):
         assert login(client).status_code == 302
         client.post("/accounts/logout")
 
 
-def test_login_failures_are_rate_limited_per_username() -> None:
-    client = _rate_limited_app_with_user().test_client()
+def test_login_failures_are_rate_limited_per_username(make_app: MakeApp) -> None:
+    client = _rate_limited_app_with_user(make_app).test_client()
     statuses = []
     for i in range(11):
         # 別々の IP アドレスから同じユーザー名を狙う
@@ -175,7 +175,7 @@ def _signup_from(client: FlaskClient, forwarded_for: str) -> int:
     return response.status_code
 
 
-def test_rate_limit_uses_real_client_ip_behind_proxy() -> None:
+def test_rate_limit_uses_real_client_ip_behind_proxy(make_app: MakeApp) -> None:
     client = make_app(BehindProxyConfig).test_client()
 
     statuses = [_signup_from(client, "203.0.113.1") for _ in range(6)]
@@ -184,7 +184,7 @@ def test_rate_limit_uses_real_client_ip_behind_proxy() -> None:
     assert _signup_from(client, "203.0.113.2") == 400
 
 
-def test_forwarded_header_is_ignored_without_proxy_setting() -> None:
+def test_forwarded_header_is_ignored_without_proxy_setting(make_app: MakeApp) -> None:
     # プロキシの設定がなければ X-Forwarded-For を信じない
     # （偽のヘッダーを付けて、回数制限をすり抜けられないようにする）
     client = make_app(RateLimitEnabledConfig).test_client()
@@ -193,7 +193,7 @@ def test_forwarded_header_is_ignored_without_proxy_setting() -> None:
     assert statuses == [400] * 5 + [429]
 
 
-def test_https_is_detected_behind_proxy() -> None:
+def test_https_is_detected_behind_proxy(make_app: MakeApp) -> None:
     app = make_app(BehindProxyConfig)
 
     @app.get("/scheme")
@@ -210,7 +210,7 @@ def test_https_is_detected_behind_proxy() -> None:
 # ---------- 本番設定での Cookie ----------
 
 
-def test_remember_cookie_is_secure_in_production() -> None:
+def test_remember_cookie_is_secure_in_production(make_app: MakeApp) -> None:
     app = make_app(ProductionTestConfig)
     create_user(app)
     response = login(app.test_client(), remember="y")

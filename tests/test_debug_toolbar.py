@@ -3,7 +3,7 @@
 from flask.testing import FlaskClient
 
 from fl_demonstro.config import DevelopmentConfig, ProductionConfig, TestingConfig
-from tests.conftest import make_app
+from tests.conftest import MakeApp
 
 
 class DebugConfig(DevelopmentConfig):
@@ -21,7 +21,7 @@ class ProductionTestConfig(ProductionConfig):
     SESSION_CACHELIB = TestingConfig.SESSION_CACHELIB
 
 
-def test_toolbar_is_shown_in_debug_mode() -> None:
+def test_toolbar_is_shown_in_debug_mode(make_app: MakeApp) -> None:
     response = make_app(DebugConfig).test_client().get("/")
 
     assert "flDebug" in response.get_data(as_text=True)
@@ -29,7 +29,7 @@ def test_toolbar_is_shown_in_debug_mode() -> None:
     assert "'unsafe-inline'" in response.headers["Content-Security-Policy"]
 
 
-def test_toolbar_does_not_intercept_redirects() -> None:
+def test_toolbar_does_not_intercept_redirects(make_app: MakeApp) -> None:
     response = (
         make_app(DebugConfig)
         .test_client()
@@ -40,7 +40,7 @@ def test_toolbar_does_not_intercept_redirects() -> None:
     assert response.status_code in (400, 302)
 
 
-def test_toolbar_is_not_shown_in_production() -> None:
+def test_toolbar_is_not_shown_in_production(make_app: MakeApp) -> None:
     response = make_app(ProductionTestConfig).test_client().get("/")
 
     assert "flDebug" not in response.get_data(as_text=True)

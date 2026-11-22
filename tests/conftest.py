@@ -1,7 +1,7 @@
 """テスト全体で使う共通の準備（フィクスチャ）。"""
 
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
@@ -14,17 +14,38 @@ from fl_demonstro.accounts.models import User
 from fl_demonstro.config import Config, TestingConfig
 from fl_demonstro.extensions import db
 
-
-def make_app(config_class: type[Config] = TestingConfig) -> Flask:
-    """テスト用のアプリを作り、空のデータベースを用意する。"""
-    app = create_app(config_class)
-    with app.app_context():
-        db.create_all()
-    return app
+# make_app フィクスチャが返す関数の型（設定クラスを受け取り、アプリを返す）
+MakeApp = Callable[[type[Config]], Flask]
 
 
 @pytest.fixture
-def app() -> Iterator[Flask]:
+def make_app() -> Iterator[MakeApp]:
+    """テスト用のアプリを作る関数。アプリごとに空のデータベースを用意する。
+
+    テストが終わったら、作ったアプリのデータベースを片付ける。
+    engine.dispose() で接続を閉じないと、接続は GC に回収されるまで残り、
+    そのとき ResourceWarning が出る（docs/04.md）。
+    """
+    apps: list[Flask] = []
+
+    def _make_app(config_class: type[Config]) -> Flask:
+        app = create_app(config_class)
+        with app.app_context():
+            db.create_all()
+        apps.append(app)
+        return app
+
+    yield _make_app
+
+    for app in apps:
+        with app.app_context():
+            db.session.remove()
+            db.drop_all()
+            db.engine.dispose()
+
+
+@pytest.fixture
+def app(make_app: MakeApp) -> Flask:
     """テスト用のアプリ。
 
     アプリコンテキストは開きっぱなしにしない。開いたままだとリクエスト同士で
@@ -32,11 +53,7 @@ def app() -> Iterator[Flask]:
     本番では起きない結果になってしまうため。
     データベースを直接触るときは、その場で with app.app_context(): を使う。
     """
-    app = make_app()
-    yield app
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
+    return make_app(TestingConfig)
 
 
 @pytest.fixture
