@@ -18,7 +18,8 @@ src/fl_demonstro/
 │   ├── data/          … よく使われるパスワードの一覧
 │   └── views.py       … 画面の処理
 └── templates/         … HTML テンプレート
-    ├── base.html      … 全ページ共通の土台
+    ├── base.html      … 全ページ共通の土台（partials/ の部品を組み立てる）
+    ├── partials/      … base.html が読み込む部品（ナビゲーションバー・flash メッセージ）
     ├── macros/        … マクロ（forms.html：フォーム部品）
     └── <ブループリント名>/...
 tests/                 … 自動テスト
