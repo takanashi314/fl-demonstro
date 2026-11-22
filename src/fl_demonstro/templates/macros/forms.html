@@ -1,6 +1,6 @@
 {#
   フォームの入力欄を Bootstrap の見た目で表示する部品。
-  使い方: {% from "_macros.html" import render_field %}
+  使い方: {% from "macros/forms.html" import render_field %}
           {{ render_field(form.username) }}
 #}
 {% macro render_field(field) %}

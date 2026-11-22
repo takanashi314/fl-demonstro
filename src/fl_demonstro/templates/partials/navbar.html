@@ -1,0 +1,52 @@
+{#
+  画面上部のナビゲーションバー。base.html から読み込む。
+  include は呼び出し元の変数（request・current_user など）をそのまま使える。
+#}
+<nav class="navbar navbar-expand-md bg-body-tertiary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">fl-demonstro</a>
+        <button class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#mainNav"
+                aria-controls="mainNav"
+                aria-expanded="false"
+                aria-label="メニューを開く">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="{{ 'nav-link active' if request.endpoint == 'main.index' else 'nav-link' }}"
+                       href="{{ url_for('main.index') }}">ホーム</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav align-items-md-center">
+                {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <span class="navbar-text me-md-3">{{ current_user.username }} さん</span>
+                    </li>
+                    <li class="nav-item">
+                        {# ログアウトは CSRF 対策のため POST で送る #}
+                        <form method="post" action="{{ url_for('accounts.logout') }}">
+                            <input type="hidden"
+                                   name="csrf_token"
+                                   value="{{ csrf_token() }}">
+                            <button type="submit"
+                                    class="btn btn-outline-secondary btn-sm">ログアウト</button>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="{{ 'nav-link active' if request.endpoint == 'accounts.login' else 'nav-link' }}"
+                           href="{{ url_for('accounts.login') }}">ログイン</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="{{ 'nav-link active' if request.endpoint == 'accounts.signup' else 'nav-link' }}"
+                           href="{{ url_for('accounts.signup') }}">サインアップ</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

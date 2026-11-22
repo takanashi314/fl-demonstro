@@ -15,3 +15,9 @@ def test_navbar_highlights_current_page(client: FlaskClient) -> None:
 
     assert "navbar" in html
     assert "nav-link active" in html
+
+
+def test_footer_is_shown(client: FlaskClient) -> None:
+    html = client.get("/").get_data(as_text=True)
+
+    assert "<footer" in html
