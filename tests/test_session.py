@@ -9,7 +9,7 @@ from werkzeug.test import TestResponse
 
 from fl_demonstro import create_app
 from fl_demonstro.config import TestingConfig
-from tests.conftest import PASSWORD, create_user, get_csrf_token, login, make_app
+from tests.conftest import PASSWORD, MakeApp, create_user, get_csrf_token, login
 
 
 class CSRFEnabledConfig(TestingConfig):
@@ -57,7 +57,7 @@ def _login_with_csrf(client: FlaskClient) -> TestResponse:
     )
 
 
-def test_session_id_changes_on_login() -> None:
+def test_session_id_changes_on_login(make_app: MakeApp) -> None:
     app = make_app(CSRFEnabledConfig)
     create_user(app)
     _, victim, attacker_sid = _plant_attacker_session(app)
@@ -66,7 +66,9 @@ def test_session_id_changes_on_login() -> None:
     assert session_cookie(victim) != attacker_sid
 
 
-def test_attacker_session_is_not_logged_in_after_victim_login() -> None:
+def test_attacker_session_is_not_logged_in_after_victim_login(
+    make_app: MakeApp,
+) -> None:
     # セッション固定攻撃：ID を新しくしないと、攻撃者もログイン状態になってしまう
     app = make_app(CSRFEnabledConfig)
     create_user(app)
@@ -95,9 +97,9 @@ def _remember_cookie_value(app: Flask) -> str:
     return cookie.value
 
 
-def _victim_with_remember_cookie_and_planted_session() -> tuple[
-    FlaskClient, FlaskClient, str
-]:
+def _victim_with_remember_cookie_and_planted_session(
+    make_app: MakeApp,
+) -> tuple[FlaskClient, FlaskClient, str]:
     """被害者のセッションは期限切れで「ログインしたままにする」の Cookie だけがあり、
     そこへ攻撃者のセッション ID が仕込まれた状況を作る。"""
     app = make_app(CSRFEnabledConfig)
@@ -108,23 +110,27 @@ def _victim_with_remember_cookie_and_planted_session() -> tuple[
     return attacker, victim, attacker_sid
 
 
-def test_session_id_changes_on_remember_cookie_login() -> None:
-    _, victim, attacker_sid = _victim_with_remember_cookie_and_planted_session()
+def test_session_id_changes_on_remember_cookie_login(make_app: MakeApp) -> None:
+    _, victim, attacker_sid = _victim_with_remember_cookie_and_planted_session(make_app)
 
     assert shows_logged_in(victim)  # Cookie からログイン状態が戻る
     assert session_cookie(victim) != attacker_sid
 
 
-def test_attacker_session_is_not_logged_in_after_remember_cookie_login() -> None:
-    attacker, victim, _ = _victim_with_remember_cookie_and_planted_session()
+def test_attacker_session_is_not_logged_in_after_remember_cookie_login(
+    make_app: MakeApp,
+) -> None:
+    attacker, victim, _ = _victim_with_remember_cookie_and_planted_session(make_app)
 
     assert shows_logged_in(victim)
     assert not shows_logged_in(attacker)
 
 
-def test_planted_csrf_token_is_discarded_on_remember_cookie_login() -> None:
+def test_planted_csrf_token_is_discarded_on_remember_cookie_login(
+    make_app: MakeApp,
+) -> None:
     # 攻撃者は、仕込んだセッションの CSRF の合言葉を知っている
-    attacker, victim, _ = _victim_with_remember_cookie_and_planted_session()
+    attacker, victim, _ = _victim_with_remember_cookie_and_planted_session(make_app)
     attacker_token = get_csrf_token(
         attacker.get("/accounts/login").get_data(as_text=True)
     )
