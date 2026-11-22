@@ -13,17 +13,22 @@ jobs:
 
     env:
       UV_VERSION: "0.13.9"
-      UV_CACHE_DIR: ${{ runner.temp }}/uv-cache
       REPORT_DIR: .dev_cache/.pytest_reports
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
 
+      # runner.temp はジョブの env では使えないので、ここで環境変数に入れる
+      # （GITHUB_ENV に書いた値は、後のステップで env.UV_CACHE_DIR として読める）
+      - name: Set uv cache directory
+        run: echo "UV_CACHE_DIR=$RUNNER_TEMP/uv-cache" >> "$GITHUB_ENV"
+
       - name: Setup Python
         uses: actions/setup-python@v7.1.0
         with:
-          python-version: "3.14"
+          # プロジェクトと同じバージョン（.python-version）を使う
+          python-version-file: .python-version
 
       - name: Install uv
         run: python -m pip install "uv==$UV_VERSION"
@@ -45,6 +50,12 @@ jobs:
 
       - name: Check types
         run: uv run --no-sync mypy
+
+      - name: Check template formatting
+        run: uv run --no-sync djlint --check src
+
+      - name: Lint templates
+        run: uv run --no-sync djlint --lint src
 
       - name: Run tests
         run: |
