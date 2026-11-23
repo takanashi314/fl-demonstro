@@ -1,17 +1,33 @@
+# アプリ（web）と Redis の2つのコンテナを、まとめて作って動かすための設定。
+# docker compose up --build で、イメージのビルド → ネットワークとボリュームの作成 →
+# redis → web の順に起動する（流れは docs/06.md、この設定の読まれ方は docs/6A.md）。
+#
+# 同じフォルダの .env は、このファイルの ${...} を置き換えるのにだけ使われる。
+# .env の中身が自動でコンテナに渡るわけではなく、コンテナに渡るのは environment: に書いたものと、
+# Dockerfile の ENV だけ。
+
 # プロジェクト名を固定する。書かないとフォルダ名が使われるため、フォルダ名を変えると
 # データの置き場所（ボリューム）の名前まで変わり、前のデータが見えなくなってしまう。
 name: fl-demonstro
 
+# ネットワークは書いていないので、既定のネットワーク（fl-demonstro_default）が1つ作られ、
+# 2つのコンテナがそこにつながる。サービス名（web・redis）が、そのままホスト名になる。
 services:
+  # Flask アプリ（gunicorn）のコンテナ
   web:
+    # このフォルダの Dockerfile でイメージを作る（イメージ名は fl-demonstro-web）
     build: .
     ports:
       # 自分のパソコンからだけ開けるようにする（同じネットワークの他の機器からは見えない）
+      # 書き方は「パソコン側のアドレス:パソコン側のポート:コンテナ側のポート」。
       - "127.0.0.1:8000:8000"
+    # コンテナの環境変数。Dockerfile の ENV（APP_ENV=production など）に足される（同じ名前ならこちらが優先）。
+    # アプリでは config.py が import されたときに読む。
     environment:
       # .env の SECRET_KEY を渡す（未設定ならエラーで止める）
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY を .env に設定してください}
       # セッションと送信回数の記録を Redis に置き、複数ワーカーで共有する
+      # （ホスト名の redis は、下の redis サービスの名前）
       REDIS_URL: redis://redis:6379/0
       # ローカルの http://localhost で試すため。HTTPS で公開するときは消すこと。
       SESSION_COOKIE_SECURE: "false"
@@ -19,12 +35,19 @@ services:
       # TRUSTED_PROXY_COUNT: "1"
     volumes:
       # データベース（SQLite）をコンテナの外に保存し、作り直しても消えないようにする
+      # 「名前付きボリューム:コンテナの中の場所」。場所は Dockerfile の INSTANCE_PATH と同じ。
       - db-data:/app/instance
+    # redis を先に起動する。ただし「コンテナが起動した」までしか待たず、
+    # Redis が接続を受け付けられるかは待たない（アプリは使うときに初めて接続するので困らない）。
     depends_on:
       - redis
+    # 自分で止めない限り、コンテナが終了したら Docker が起動し直す
     restart: unless-stopped
 
+  # セッションと送信回数の記録を置く Redis のコンテナ
+  # ports を書いていないので、パソコンからは開けず、同じネットワークの web からだけ届く。
   redis:
+    # 公式イメージ（alpine は小さい版）。起動時に redis ユーザーに切り替えてから動く。
     image: redis:8-alpine
     # --appendonly yes: データをファイルにも書き出し、Redis を再起動してもログイン状態が消えないようにする
     # --maxmemory: 使うメモリの上限。いっぱいになったら、しばらく使われていないものから消す
@@ -38,9 +61,13 @@ services:
       - --maxmemory-policy
       - allkeys-lru
     volumes:
+      # AOF（書き出したデータ）を置く場所
       - redis-data:/data
     restart: unless-stopped
 
+# 名前付きボリューム。実際の名前は、プロジェクト名が付いた
+# fl-demonstro_db-data・fl-demonstro_redis-data になる。
+# docker compose down では消えず、docker compose down -v で消える。
 volumes:
   db-data:
   redis-data:
